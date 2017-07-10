@@ -1,0 +1,35 @@
+name: strip
+version: "0.1.0"
+author: Felix Stegmaier <stegmaier.felix@gmail.com>
+about: Strip comments away, default style is Shell comment style
+args:
+    - INPUT:
+        help: Sets the input file to use, uses stdin if not set
+        required: false
+    - output:
+        short: o
+        long: output
+        help: Sets the output file to uses, uses stdout if not set
+        required: false
+        takes_value: true
+    - xml-style:
+        short: x
+        long: xml-style
+        help: Strip away XML style comments e.g. `<!-- some comment -->`
+        required: false
+    - c-style:
+        short: c
+        long: c-style
+        help: Strip away C style comments e.g. `/* some comment */` or `// some line comment`
+        required: false
+    - shell-style:
+        short: s
+        long: shell-style
+        help: Strip away shell style comments e.g. `# some line comment`
+        required: false
+groups:
+    - comment-style:
+        args:
+            - xml-style
+            - c-style
+            - shell-style
