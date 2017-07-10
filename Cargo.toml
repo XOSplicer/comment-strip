@@ -2,6 +2,7 @@
 name = "strip"
 version = "0.1.0"
 authors = ["Felix Stegmaier <stegmaier.felix@gmail.com>"]
+license = "MIT"
 
 [dependencies]
 clap = { version = "2.25.0", features = ["yaml"] }

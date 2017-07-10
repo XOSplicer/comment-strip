@@ -15,17 +15,17 @@ args:
     - xml-style:
         short: x
         long: xml-style
-        help: Strip away XML style comments e.g. `<!-- some comment -->`
+        help: Strip away XML style comments e.g. `<!-- some comment -->`, only one style may be specified
         required: false
     - c-style:
         short: c
         long: c-style
-        help: Strip away C style comments e.g. `/* some comment */` or `// some line comment`
+        help: Strip away C style comments e.g. `/* some comment */` or `// some line comment`, only one style may be specified
         required: false
     - shell-style:
         short: s
         long: shell-style
-        help: Strip away shell style comments e.g. `# some line comment`
+        help: Strip away shell style comments e.g. `# some line comment`, only one style may be specified
         required: false
 groups:
     - comment-style:

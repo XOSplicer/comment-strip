@@ -92,7 +92,7 @@ pub fn find_comments(input: &str) -> Result<Vec<CommentMatch>, &'static str> {
     let mut position = 0;
     while current_state != ParseState::End {
         let current_char = chars.next();
-        println!("parsing state {:?} with input '{:?}'", &current_state, &current_char );
+        // println!("parsing state {:?} with input '{:?}'", &current_state, &current_char );
         let (next_state, action) = state_transition(current_state, current_char);
         match action {
             ParseAction::Nothing => {},
@@ -121,7 +121,7 @@ pub fn find_comments(input: &str) -> Result<Vec<CommentMatch>, &'static str> {
                 }
             }
         }
-        //println!("action {:?}", &action);
+        // println!("action {:?}", &action);
         current_state = next_state;
         position += 1;
     }

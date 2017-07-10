@@ -112,10 +112,10 @@ fn strip_comments(input: String, matches: Vec<CommentMatch>) -> Result<String, &
 }
 
 fn check_sorted_matches(input: &str, matches: &Vec<CommentMatch>) -> Result<(), &'static str> {
-    if(matches.iter().any(|m| m.from >= input.len() || m.to > input.len())) {
+    if matches.iter().any(|m| m.from >= input.len() || m.to > input.len()) {
         return Err("match out of range");
     }
-    if(matches.iter().zip(matches.iter().skip(1)).any(|(m, n)| m.to > n.from)) {
+    if matches.iter().zip(matches.iter().skip(1)).any(|(m, n)| m.to > n.from) {
         return Err("matches overlapping");
     }
     Ok(())
