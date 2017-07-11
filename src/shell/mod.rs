@@ -19,15 +19,15 @@ enum ParseAction {
     Nothing,
     CommentStarts,
     CommentEnds,
-    CommentCouldStart,
-    CommentAbort
+    ShebangOrCommentStart,
+    ShebangFound
 }
 
 fn state_transition(from: ParseState, current_char: Option<char>) -> (ParseState, ParseAction) {
     match current_char {
         Some(c) => match from {
             ParseState::Start => match c {
-                '#'     => (ParseState::ShebangOrComment, ParseAction::CommentCouldStart),
+                '#'     => (ParseState::ShebangOrComment, ParseAction::ShebangOrCommentStart),
                 _       => (ParseState::Normal, ParseAction::Nothing)
             },
             ParseState::Normal => match c {
@@ -37,7 +37,7 @@ fn state_transition(from: ParseState, current_char: Option<char>) -> (ParseState
                 _       => (ParseState::Normal, ParseAction::Nothing)
             },
             ParseState::ShebangOrComment => match c {
-                '!'     => (ParseState::Shebang, ParseAction::CommentAbort),
+                '!'     => (ParseState::Shebang, ParseAction::ShebangFound),
                 _       => (ParseState::Comment, ParseAction::Nothing)
             },
             ParseState::Shebang => match c {
@@ -71,7 +71,7 @@ fn state_transition(from: ParseState, current_char: Option<char>) -> (ParseState
         None => match from {
             // ..... return if over and comment was finished or not
             ParseState::Comment => (ParseState::End, ParseAction::CommentEnds),
-            ParseState::ShebangOrComment => (ParseState::End, ParseAction::CommentAbort),
+            ParseState::ShebangOrComment => (ParseState::End, ParseAction::ShebangFound),
             _ => (ParseState::End, ParseAction::Nothing)
         }
     }
@@ -99,10 +99,10 @@ pub fn find_comments(input: &str) -> Result<Vec<CommentMatch>, &'static str> {
             ParseAction::CommentStarts => {
                 comment_state = CommentState::InComment(position);
             },
-            ParseAction::CommentCouldStart =>  {
+            ParseAction::ShebangOrCommentStart =>  {
                 comment_state = CommentState::MaybeInComment(position);
             },
-            ParseAction::CommentAbort => {
+            ParseAction::ShebangFound => {
                 comment_state = CommentState::NotInComment;
             },
             ParseAction::CommentEnds => {
@@ -126,4 +126,77 @@ pub fn find_comments(input: &str) -> Result<Vec<CommentMatch>, &'static str> {
         position += 1;
     }
     Ok(matches)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use super::super::CommentMatch;
+
+    #[test]
+    fn no_comment_present() {
+        let input = "yes\n yes no\n";
+        let expected = Ok(Vec::new());
+        let actual = find_comments(input);
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn no_comment_but_shebang() {
+        let input = "#!/bin/bash\nyes\n yes no\n";
+        let expected = Ok(Vec::new());
+        let actual = find_comments(input);
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn normal_comment() {
+        let input = "yes # line comment\n yes no\n";
+        let expected = Ok(vec![
+            CommentMatch { from: 4, to: 18}
+        ]);
+        let actual = find_comments(input);
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn multiple_comments() {
+        let input = "yes # line comment\n# another comment with \"string\"\n yes no\n";
+        let expected = Ok(vec![
+            CommentMatch { from: 4, to: 18 },
+            CommentMatch { from: 19, to: 50 }
+        ]);
+        let actual = find_comments(input);
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn comment_in_shebang() {
+        let input = "#!/bin/bash #shebang\nyes\n";
+        let expected = Ok(vec![
+            CommentMatch { from: 12, to: 20 }
+        ]);
+        let actual = find_comments(input);
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn no_final_newline() {
+        let input = "yes #test";
+        let expected = Ok(vec![
+            CommentMatch { from: 4, to: 9 }
+        ]);
+        let actual = find_comments(input);
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn co_comment_in_string() {
+        let input = "yes 'string\"inner string\"' #test\n";
+        let expected = Ok(vec![
+            CommentMatch { from: 27, to: 32 }
+        ]);
+        let actual = find_comments(input);
+        assert_eq!(expected, actual);
+    }
 }

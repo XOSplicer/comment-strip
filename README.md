@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/XOSplicer/comment-strip.svg?branch=master)](https://travis-ci.org/XOSplicer/comment-strip)
+
 # comment-strip
 Strip comments away.
 Delete comments out of text files.
