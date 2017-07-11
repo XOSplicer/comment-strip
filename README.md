@@ -69,11 +69,15 @@ whoami
 pwd #and where we are
 # uncomment to also list files
 # ls -lah
+echo 'Hello, "world" #no comment' #comment
+
 $ strip --shell-style my_shell_script.sh
 #!/bin/bash
 uname -a
 whoami
 pwd
+echo 'Hello, "world" #no comment'
+
 ```
 
 
