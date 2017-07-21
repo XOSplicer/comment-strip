@@ -28,6 +28,8 @@ fn state_transition(from: ParseState, current_char: Option<char>) -> (ParseState
         Some(c) => match from {
             ParseState::Start => match c {
                 '#'     => (ParseState::ShebangOrComment, ParseAction::ShebangOrCommentStart),
+                '"'     => (ParseState::StringDoubleQuotes, ParseAction::Nothing),
+                '\''    => (ParseState::StringSingleQuotes, ParseAction::Nothing),
                 _       => (ParseState::Normal, ParseAction::Nothing)
             },
             ParseState::Normal => match c {
@@ -108,7 +110,7 @@ pub fn find_comments(input: &str) -> Result<Vec<CommentMatch>, &'static str> {
             ParseAction::CommentEnds => {
                 match comment_state {
                     CommentState::NotInComment => {
-                        return Err("parse error");
+                        return Err("shell sytle parse error");
                     },
                     CommentState::MaybeInComment(from) => {
                         matches.push(CommentMatch{from: from, to: position});
@@ -191,7 +193,7 @@ mod tests {
     }
 
     #[test]
-    fn co_comment_in_string() {
+    fn no_comment_in_string() {
         let input = "yes 'string\"inner string\"' #test\n";
         let expected = Ok(vec![
             CommentMatch { from: 27, to: 32 }

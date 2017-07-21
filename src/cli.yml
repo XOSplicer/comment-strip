@@ -27,6 +27,12 @@ args:
         long: shell-style
         help: Strip away shell style comments e.g. `# some line comment`, only one style may be specified
         required: false
+    - no-remove-blank-lines:
+        short: B
+        long: no-remove-blank-lines
+        help: don't remove multiple blank lines
+        required: false
+
 groups:
     - comment-style:
         args:

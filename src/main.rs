@@ -4,12 +4,12 @@ extern crate clap;
 mod c;
 mod shell;
 mod xml;
+mod blanklines;
 
 use std::fs;
 use std::io::{self, Read, Write, BufReader, BufWriter};
 use std::path::Path;
 use clap::App;
-
 
 #[derive(Debug)]
 enum Input {
@@ -137,6 +137,7 @@ fn main() {
         (_, _, true) => CommentStyle::Shell,
         _ => CommentStyle::Shell
     };
+    let remove_blanks = !matches.is_present("no-remove-blank-lines");
     //println!("Using input {:?}", &input);
     //println!("Using output {:?}", &output);
     //println!("Stripping {:?} style", &comment_style);
@@ -144,10 +145,16 @@ fn main() {
     let mut br = BufReader::new(input);
     br.read_to_string(&mut data)
         .expect("Could not read data");
-    let matches = find_comments(data.as_str(), &comment_style)
-    .expect("Could not parse comments");
-    let stripped = strip_comments(data, matches)
-    .expect("Could not strip out comments");
+    let comment_matches = find_comments(data.as_str(), &comment_style)
+        .expect("Could not parse comments");
+    let mut stripped = strip_comments(data, comment_matches)
+        .expect("Could not strip out comments");
+    if remove_blanks {
+        let blank_matches = blanklines::find_blanklines(stripped.as_str())
+            .expect("Could not parse blank lines");
+        stripped = strip_comments(stripped, blank_matches)
+            .expect("Could not strip blank lines");
+    }
     let mut bw = BufWriter::new(output);
     bw.write_all(stripped.as_bytes())
         .expect("Could not write data");
