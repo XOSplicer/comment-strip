@@ -1,5 +1,5 @@
-name: strip
-version: "0.1.0"
+name: comment-strip
+version: "0.1.1"
 author: Felix Stegmaier <stegmaier.felix@gmail.com>
 about: Strip comments away, default style is Shell comment style
 args:

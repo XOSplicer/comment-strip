@@ -1,8 +1,16 @@
 [package]
-name = "strip"
-version = "0.1.0"
+name = "comment-strip"
+version = "0.1.1"
 authors = ["Felix Stegmaier <stegmaier.felix@gmail.com>"]
 license = "MIT"
+description = "Remove comments out of text files"
+repository = "https://github.com/XOSplicer/comment-strip"
+readme = "README.md"
+keywords = ["delete", "remove", "strip", "comments", "commandline"]
+categories = ["command-line-utilities", "text-processing"]
+
+[badges]
+travis-ci = { repository = "https://github.com/XOSplicer/comment-strip", branch = "master" }
 
 [dependencies]
 clap = { version = "2.25.0", features = ["yaml"] }
