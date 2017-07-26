@@ -11,10 +11,11 @@ So with this tool you can _strip_ away the comments of the most common formats.
 
 Currently supported comment styles:
 - Shell style
+- XML style (CDATA tag is not escaped)
 
 Planned comment styles:
 - C style
-- XML style
+
 
 I started this project to enhance my practical knowledge of the rust programming language.
 I could not find an easy applicable solution to the problem with detecting comments,
@@ -23,8 +24,13 @@ If you like the tool and would like to contribute or simply leave a note,
 feel free to open an issue.
 
 
-## Compiling and Running
-To compile comment-strip you need somewhat recent version of rust.
+## Installing / Compiling
+To install comment-strip you can use cargo.
+Simply run
+`cargo install comment-strip`
+to install the latest version.
+
+To compile comment-strip yourself, you need somewhat recent version of rust.
 If you are using cargo, it's easy to get an executable.
 1. `git clone git@github.com:XOSplicer/comment-strip.git`
 2. `cd comment-strip`
@@ -34,20 +40,21 @@ If you are using cargo, it's easy to get an executable.
 
 ## Usage
 ```
-$ ./strip --help          
-strip 0.1.0
+$ comment-strip --help
+comment-strip 0.1.2
 Felix Stegmaier <stegmaier.felix@gmail.com>
 Strip comments away, default style is Shell comment style
 
 USAGE:
-    strip [FLAGS] [OPTIONS] [INPUT]
+    comment-strip [FLAGS] [OPTIONS] [INPUT]
 
 FLAGS:
-    -c, --c-style        Strip away C style comments e.g. `/* some comment */` or `// some line comment`, only one style may be specified
-    -h, --help           Prints help information
-    -s, --shell-style    Strip away shell style comments e.g. `# some line comment`, only one style may be specified
-    -V, --version        Prints version information
-    -x, --xml-style      Strip away XML style comments e.g. `<!-- some comment -->`, only one style may be specified
+    -c, --c-style                  Strip away C style comments e.g. `/* some comment */` or `// some line comment`, only one style may be specified
+    -h, --help                     Prints help information
+    -B, --no-remove-blank-lines    don't remove multiple blank lines
+    -s, --shell-style              Strip away shell style comments e.g. `# some line comment`, only one style may be specified
+    -V, --version                  Prints version information
+    -x, --xml-style                Strip away XML style comments e.g. `<!-- some comment -->`, only one style may be specified
 
 OPTIONS:
     -o, --output <output>    Sets the output file to uses, uses stdout if not set
@@ -71,7 +78,7 @@ pwd #and where we are
 # ls -lah
 echo 'Hello, "world" #no comment' #comment
 
-$ strip --shell-style my_shell_script.sh
+$ comment-strip --shell-style my_shell_script.sh
 #!/bin/bash
 uname -a
 whoami
