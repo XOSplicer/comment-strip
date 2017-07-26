@@ -1,5 +1,5 @@
 [![Build Status](https://travis-ci.org/XOSplicer/comment-strip.svg?branch=master)](https://travis-ci.org/XOSplicer/comment-strip)
-
+[![Latest Version](https://img.shields.io/crates/v/comment-strip.svg)](https://crates.io/crates/comment-strip)
 # comment-strip
 Strip comments away.\
 Delete comments out of text files.

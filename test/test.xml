@@ -1,0 +1,9 @@
+<!-- some comment -->
+<tag>
+<!-- multi
+line
+comment -->
+</tag><!----><b />
+<t value="string<!-- no comment -->" />
+<!--/t-->
+

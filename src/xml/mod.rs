@@ -34,13 +34,13 @@ fn state_transition(from: ParseState, current_char: Option<char>) -> (ParseState
         Some(c) => match from {
             ParseState::Start => match c {
                 '<'     => (ParseState::CommentStartBracket, ParseAction::CommentOrTagStarts),
-                '"'     => (ParseState::StringSingleQuotes, ParseAction::Nothing),
+                '"'     => (ParseState::StringDoubleQuotes, ParseAction::Nothing),
                 '\''    => (ParseState::StringSingleQuotes, ParseAction::Nothing),
                 _       => (ParseState::Normal, ParseAction::Nothing)
             },
             ParseState::Normal => match c {
                 '<'     => (ParseState::CommentStartBracket, ParseAction::CommentOrTagStarts),
-                '"'     => (ParseState::StringSingleQuotes, ParseAction::Nothing),
+                '"'     => (ParseState::StringDoubleQuotes, ParseAction::Nothing),
                 '\''    => (ParseState::StringSingleQuotes, ParseAction::Nothing),
                 _       => (ParseState::Normal, ParseAction::Nothing)
             },
@@ -75,7 +75,7 @@ fn state_transition(from: ParseState, current_char: Option<char>) -> (ParseState
             },
             ParseState::CommentEndBracket => match c {
                 '<'     => (ParseState::CommentStartBracket, ParseAction::CommentsEndsAndCommentOrTagStarts),
-                '"'     => (ParseState::StringSingleQuotes, ParseAction::CommentEnds),
+                '"'     => (ParseState::StringDoubleQuotes, ParseAction::CommentEnds),
                 '\''    => (ParseState::StringSingleQuotes, ParseAction::CommentEnds),
                 _       => (ParseState::Normal, ParseAction::CommentEnds)
             },
