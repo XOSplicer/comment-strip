@@ -93,3 +93,7 @@ echo 'Hello, "world" #no comment'
 
 ## License
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
+
+## Contributing
+Feel free to contribute to this project using Issues and Pull Requests. 
+Any code merged will be treated as licensed under the same license as this project.
