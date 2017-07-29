@@ -1,4 +1,4 @@
-use super::CommentMatch;
+use super::{CommentMatch, Start, End, find_comments_impl};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ParseState {
@@ -17,6 +17,18 @@ enum ParseState {
     StringSingleQuotes,
     StringSingleQuotesEscaped,
     End
+}
+
+impl Start for ParseState {
+    fn start() -> Self {
+        ParseState::Start
+    }
+}
+
+impl End for ParseState {
+    fn end() -> Self {
+        ParseState::End
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -117,62 +129,61 @@ enum CommentState {
     InComment(usize)
 }
 
-pub fn find_comments(input: &str) -> Result<Vec<CommentMatch>, &'static str> {
-    let mut matches = Vec::new();
-    let mut current_state = ParseState::Start;
-    let mut comment_state = CommentState::NotInComment;
-    let mut chars = input.chars();
-    let mut position = 0;
-    while current_state != ParseState::End {
-        let current_char = chars.next();
-        // println!("parsing state {:?} with input '{:?}'", &current_state, &current_char );
-        let (next_state, action) = state_transition(current_state, current_char);
-        match action {
-            ParseAction::Nothing => {},
-            ParseAction::CommentOrTagStarts => {
-                comment_state = CommentState::InCommentOrTag(position);
-            },
-            ParseAction::CommentConfirmed => {
-                match comment_state {
-                    CommentState::InCommentOrTag(from) => {
-                        comment_state = CommentState::InComment(from);
-                    },
-                    _ => {
-                        return Err("xml style parser error");
-                    }
+impl Start for CommentState {
+    fn start() -> Self {
+        CommentState::NotInComment
+    }
+}
+
+fn do_action(action: ParseAction, mut comment_state: CommentState, 
+            position: usize, mut matches: Vec<CommentMatch>) 
+    -> Result<(CommentState, Vec<CommentMatch>), &'static str> {
+    match action {
+        ParseAction::Nothing => {},
+        ParseAction::CommentOrTagStarts => {
+            comment_state = CommentState::InCommentOrTag(position);
+        },
+        ParseAction::CommentConfirmed => {
+            match comment_state {
+                CommentState::InCommentOrTag(from) => {
+                    comment_state = CommentState::InComment(from);
+                },
+                _ => {
+                    return Err("xml style parser error");
                 }
-            },
-            ParseAction::CommentDismissed => {
-                comment_state = CommentState::NotInComment;
-            },
-            ParseAction::CommentEnds => {
-                match comment_state {
-                    CommentState::InComment(from) => {
-                        matches.push(CommentMatch{from: from, to: position});
-                        comment_state = CommentState::NotInComment;
-                    },
-                    _ => {
-                        return Err("xml style parser error");
-                    }
+            }
+        },
+        ParseAction::CommentDismissed => {
+            comment_state = CommentState::NotInComment;
+        },
+        ParseAction::CommentEnds => {
+            match comment_state {
+                CommentState::InComment(from) => {
+                    matches.push(CommentMatch{from: from, to: position});
+                    comment_state = CommentState::NotInComment;
+                },
+                _ => {
+                    return Err("xml style parser error");
                 }
-            },
-            ParseAction::CommentsEndsAndCommentOrTagStarts => {
-                match comment_state {
-                    CommentState::InComment(from) => {
-                        matches.push(CommentMatch{from: from, to: position});
-                        comment_state = CommentState::InCommentOrTag(position);
-                    },
-                    _ => {
-                        return Err("xml style parser error");
-                    }
+            }
+        },
+        ParseAction::CommentsEndsAndCommentOrTagStarts => {
+            match comment_state {
+                CommentState::InComment(from) => {
+                    matches.push(CommentMatch{from: from, to: position});
+                    comment_state = CommentState::InCommentOrTag(position);
+                },
+                _ => {
+                    return Err("xml style parser error");
                 }
             }
         }
-        // println!("action {:?}", &action);
-        current_state = next_state;
-        position += 1;
     }
-    Ok(matches)
+    Ok((comment_state, matches))
+}
+
+pub fn find_comments(input: &str) -> Result<Vec<CommentMatch>, &'static str> {
+    find_comments_impl(input, state_transition, do_action)
 }
 
 #[cfg(test)]

@@ -1,4 +1,4 @@
-use super::CommentMatch;
+use super::{CommentMatch, Start, End, find_comments_impl};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ParseState {
@@ -11,6 +11,18 @@ enum ParseState {
     StringSingleQuotes,
     StringSingleQuotesEscaped,
     End
+}
+
+impl Start for ParseState {
+    fn start() -> Self {
+        ParseState::Start
+    }
+}
+
+impl End for ParseState {
+    fn end() -> Self {
+        ParseState::End
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -77,38 +89,37 @@ enum MultiBlanklineState {
     InMultiBlankline(usize)
 }
 
-pub fn find_blanklines(input: &str) -> Result<Vec<CommentMatch>, &'static str> {
-    let mut matches = Vec::new();
-    let mut current_state = ParseState::Start;
-    let mut blankline_state = MultiBlanklineState::NotInMultiBlankline;
-    let mut chars = input.chars();
-    let mut position = 0;
-while current_state != ParseState::End {
-        let current_char = chars.next();
-        // println!("parsing state {:?} with input '{:?}'", &current_state, &current_char );
-        let (next_state, action) = state_transition(current_state, current_char);
-        match action {
-            ParseAction::Nothing => {},
-            ParseAction::MultiBlanklineStart => {
-                blankline_state = MultiBlanklineState::InMultiBlankline(position);
-            },
-            ParseAction::MultiBlanklineEnd => {
-                match blankline_state {
-                    MultiBlanklineState::NotInMultiBlankline => {
-                        return Err(" blankline parser error");
-                    },
-                    MultiBlanklineState::InMultiBlankline(from) => {
-                        matches.push(CommentMatch{from: from, to: position});
-                        blankline_state = MultiBlanklineState::NotInMultiBlankline;
-                    }
+impl Start for MultiBlanklineState {
+    fn start() -> Self {
+        MultiBlanklineState::NotInMultiBlankline
+    }
+}
+
+fn do_action(action: ParseAction, mut blankline_state: MultiBlanklineState, 
+            position: usize, mut matches: Vec<CommentMatch>) 
+    -> Result<(MultiBlanklineState, Vec<CommentMatch>), &'static str> {
+    match action {
+        ParseAction::Nothing => {},
+        ParseAction::MultiBlanklineStart => {
+            blankline_state = MultiBlanklineState::InMultiBlankline(position);
+        },
+        ParseAction::MultiBlanklineEnd => {
+            match blankline_state {
+                MultiBlanklineState::NotInMultiBlankline => {
+                    return Err(" blankline parser error");
+                },
+                MultiBlanklineState::InMultiBlankline(from) => {
+                    matches.push(CommentMatch{from: from, to: position});
+                    blankline_state = MultiBlanklineState::NotInMultiBlankline;
                 }
             }
         }
-        // println!("action {:?}", &action);
-        current_state = next_state;
-        position += 1;
     }
-    Ok(matches)
+    Ok((blankline_state, matches))
+}
+
+pub fn find_blanklines(input: &str) -> Result<Vec<CommentMatch>, &'static str> {
+    find_comments_impl(input, state_transition, do_action)
 }
 
 #[cfg(test)]
