@@ -12,8 +12,6 @@ So with this tool you can _strip_ away the comments of the most common formats.
 Currently supported comment styles:
 - Shell style
 - XML style (CDATA tag is not escaped)
-
-Planned comment styles:
 - C style
 
 
