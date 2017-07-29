@@ -8,6 +8,7 @@ repository = "https://github.com/XOSplicer/comment-strip"
 readme = "README.md"
 keywords = ["delete", "remove", "strip", "comments", "commandline"]
 categories = ["command-line-utilities", "text-processing"]
+exclude = ["test/"]
 
 [badges]
 travis-ci = { repository = "XOSplicer/comment-strip", branch = "master" }
