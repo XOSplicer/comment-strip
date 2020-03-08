@@ -1,4 +1,4 @@
-use crate::{find_comments_impl, CommentMatch, End, Start};
+use crate::{find_comments_impl, AppError, CommentMatch, End, Start};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ParseState {
@@ -130,12 +130,16 @@ impl Start for CommentState {
     }
 }
 
+fn bail(msg: &'static str) -> Result<(), AppError> {
+    Err(AppError::Parser { name: "c", msg })
+}
+
 fn do_action(
     action: ParseAction,
     mut comment_state: CommentState,
     position: usize,
     mut matches: Vec<CommentMatch>,
-) -> Result<(CommentState, Vec<CommentMatch>), &'static str> {
+) -> Result<(CommentState, Vec<CommentMatch>), AppError> {
     match action {
         ParseAction::Nothing => {}
         ParseAction::CommentMightStart => {
@@ -148,7 +152,7 @@ fn do_action(
                 }
                 _ => {
                     // println!("{:?}", (&comment_state, &current_state, &next_state, &current_char, &position));
-                    return Err("c style parser error");
+                    bail("invalid state")?;
                 }
             }
         }
@@ -162,7 +166,7 @@ fn do_action(
                 comment_state = CommentState::NotInComment;
             }
             _ => {
-                return Err("c style parser error");
+                bail("c style parser error")?;
             }
         },
         ParseAction::CommentEndsAndCommentMightStart => match comment_state {
@@ -174,14 +178,14 @@ fn do_action(
                 comment_state = CommentState::MaybeInComment(position);
             }
             _ => {
-                return Err("c style parser error");
+                bail("c style parser error")?;
             }
         },
     }
     Ok((comment_state, matches))
 }
 
-pub fn find_comments(input: &str) -> Result<Vec<CommentMatch>, &'static str> {
+pub fn find_comments(input: &str) -> Result<Vec<CommentMatch>, AppError> {
     find_comments_impl(input, state_transition, do_action)
 }
 
@@ -193,58 +197,58 @@ mod tests {
     #[test]
     fn no_comment_present() {
         let input = "int main() {};";
-        let expected = Ok(Vec::new());
-        let actual = find_comments(input);
+        let expected: Vec<CommentMatch> = Vec::new();
+        let actual = find_comments(input).unwrap();
         assert_eq!(expected, actual);
     }
 
     #[test]
     fn normal_comment() {
         let input = "int main() { /* comment */ }";
-        let expected = Ok(vec![CommentMatch { from: 13, to: 26 }]);
-        let actual = find_comments(input);
+        let expected = vec![CommentMatch { from: 13, to: 26 }];
+        let actual = find_comments(input).unwrap();
         assert_eq!(expected, actual);
     }
 
     #[test]
     fn multiple_comments() {
         let input = "main()/* comment */\n/* comment */";
-        let expected = Ok(vec![
+        let expected = vec![
             CommentMatch { from: 6, to: 19 },
             CommentMatch { from: 20, to: 33 },
-        ]);
-        let actual = find_comments(input);
+        ];
+        let actual = find_comments(input).unwrap();
         assert_eq!(expected, actual);
     }
 
     #[test]
     fn line_comment() {
         let input = "main() // comment\n";
-        let expected = Ok(vec![CommentMatch { from: 7, to: 17 }]);
-        let actual = find_comments(input);
+        let expected = vec![CommentMatch { from: 7, to: 17 }];
+        let actual = find_comments(input).unwrap();
         assert_eq!(expected, actual);
     }
     #[test]
     fn line_comment_no_newline() {
         let input = "main() // comment";
-        let expected = Ok(vec![CommentMatch { from: 7, to: 17 }]);
-        let actual = find_comments(input);
+        let expected = vec![CommentMatch { from: 7, to: 17 }];
+        let actual = find_comments(input).unwrap();
         assert_eq!(expected, actual);
     }
 
     #[test]
     fn multiline_comment() {
         let input = "/* multi \nline\ncomment */";
-        let expected = Ok(vec![CommentMatch { from: 0, to: 25 }]);
-        let actual = find_comments(input);
+        let expected = vec![CommentMatch { from: 0, to: 25 }];
+        let actual = find_comments(input).unwrap();
         assert_eq!(expected, actual);
     }
 
     #[test]
     fn no_comment_in_string() {
         let input = "printf(\"//no comment /* no comment */\")";
-        let expected = Ok(Vec::new());
-        let actual = find_comments(input);
+        let expected: Vec<CommentMatch> = Vec::new();
+        let actual = find_comments(input).unwrap();
         assert_eq!(expected, actual);
     }
 }

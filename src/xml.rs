@@ -1,4 +1,4 @@
-use crate::{find_comments_impl, CommentMatch, End, Start};
+use crate::{find_comments_impl, AppError, CommentMatch, End, Start};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ParseState {
@@ -148,12 +148,16 @@ impl Start for CommentState {
     }
 }
 
+fn bail(msg: &'static str) -> Result<(), AppError> {
+    Err(AppError::Parser { name: "xml", msg })
+}
+
 fn do_action(
     action: ParseAction,
     mut comment_state: CommentState,
     position: usize,
     mut matches: Vec<CommentMatch>,
-) -> Result<(CommentState, Vec<CommentMatch>), &'static str> {
+) -> Result<(CommentState, Vec<CommentMatch>), AppError> {
     match action {
         ParseAction::Nothing => {}
         ParseAction::CommentOrTagStarts => {
@@ -164,7 +168,7 @@ fn do_action(
                 comment_state = CommentState::InComment(from);
             }
             _ => {
-                return Err("xml style parser error");
+                bail("invalid state")?;
             }
         },
         ParseAction::CommentDismissed => {
@@ -179,7 +183,7 @@ fn do_action(
                 comment_state = CommentState::NotInComment;
             }
             _ => {
-                return Err("xml style parser error");
+                bail("invalid state")?;
             }
         },
         ParseAction::CommentsEndsAndCommentOrTagStarts => match comment_state {
@@ -191,14 +195,14 @@ fn do_action(
                 comment_state = CommentState::InCommentOrTag(position);
             }
             _ => {
-                return Err("xml style parser error");
+                bail("invalid state")?;
             }
         },
     }
     Ok((comment_state, matches))
 }
 
-pub fn find_comments(input: &str) -> Result<Vec<CommentMatch>, &'static str> {
+pub fn find_comments(input: &str) -> Result<Vec<CommentMatch>, AppError> {
     find_comments_impl(input, state_transition, do_action)
 }
 
@@ -210,51 +214,51 @@ mod tests {
     #[test]
     fn no_comment_present() {
         let input = "<tag attr=\"value\">value</tag>";
-        let expected = Ok(Vec::new());
-        let actual = find_comments(input);
+        let expected: Vec<CommentMatch> = Vec::new();
+        let actual = find_comments(input).unwrap();
         assert_eq!(expected, actual);
     }
 
     #[test]
     fn normal_comment() {
         let input = "<t /><!-- some comment -->\n<tag />";
-        let expected = Ok(vec![CommentMatch { from: 5, to: 26 }]);
-        let actual = find_comments(input);
+        let expected = vec![CommentMatch { from: 5, to: 26 }];
+        let actual = find_comments(input).unwrap();
         assert_eq!(expected, actual);
     }
 
     #[test]
     fn multiple_comments() {
         let input = "<t /><!-- some comment --><t></t><!-- another comment -->";
-        let expected = Ok(vec![
+        let expected = vec![
             CommentMatch { from: 5, to: 26 },
             CommentMatch { from: 33, to: 57 },
-        ]);
-        let actual = find_comments(input);
+        ];
+        let actual = find_comments(input).unwrap();
         assert_eq!(expected, actual);
     }
 
     #[test]
     fn comment_in_tag() {
         let input = "<tag <!-- comment -->></tag>";
-        let expected = Ok(vec![CommentMatch { from: 5, to: 21 }]);
-        let actual = find_comments(input);
+        let expected = vec![CommentMatch { from: 5, to: 21 }];
+        let actual = find_comments(input).unwrap();
         assert_eq!(expected, actual);
     }
 
     #[test]
     fn multiline_comment() {
         let input = "<!--\nmulti\nline\ncomment\n-->";
-        let expected = Ok(vec![CommentMatch { from: 0, to: 27 }]);
-        let actual = find_comments(input);
+        let expected = vec![CommentMatch { from: 0, to: 27 }];
+        let actual = find_comments(input).unwrap();
         assert_eq!(expected, actual);
     }
 
     #[test]
     fn no_comment_in_string() {
         let input = "<tag key=\"<!-- -->\" />";
-        let expected = Ok(Vec::new());
-        let actual = find_comments(input);
+        let expected: Vec<CommentMatch> = Vec::new();
+        let actual = find_comments(input).unwrap();
         assert_eq!(expected, actual);
     }
 }

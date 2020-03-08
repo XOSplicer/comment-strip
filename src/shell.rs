@@ -1,4 +1,4 @@
-use crate::{find_comments_impl, CommentMatch, End, Start};
+use crate::{find_comments_impl, AppError, CommentMatch, End, Start};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ParseState {
@@ -108,12 +108,16 @@ impl Start for CommentState {
     }
 }
 
+fn bail(msg: &'static str) -> Result<(), AppError> {
+    Err(AppError::Parser { name: "shell", msg })
+}
+
 fn do_action(
     action: ParseAction,
     mut comment_state: CommentState,
     position: usize,
     mut matches: Vec<CommentMatch>,
-) -> Result<(CommentState, Vec<CommentMatch>), &'static str> {
+) -> Result<(CommentState, Vec<CommentMatch>), AppError> {
     match action {
         ParseAction::Nothing => {}
         ParseAction::CommentStarts => {
@@ -127,7 +131,7 @@ fn do_action(
         }
         ParseAction::CommentEnds => match comment_state {
             CommentState::NotInComment => {
-                return Err("shell sytle parse error");
+                bail("invalid state")?;
             }
             CommentState::MaybeInComment(from) => {
                 matches.push(CommentMatch {
@@ -148,7 +152,7 @@ fn do_action(
     Ok((comment_state, matches))
 }
 
-pub fn find_comments(input: &str) -> Result<Vec<CommentMatch>, &'static str> {
+pub fn find_comments(input: &str) -> Result<Vec<CommentMatch>, AppError> {
     find_comments_impl(input, state_transition, do_action)
 }
 
@@ -160,59 +164,59 @@ mod tests {
     #[test]
     fn no_comment_present() {
         let input = "yes\n yes no\n";
-        let expected = Ok(Vec::new());
-        let actual = find_comments(input);
+        let expected: Vec<CommentMatch> = Vec::new();
+        let actual = find_comments(input).unwrap();
         assert_eq!(expected, actual);
     }
 
     #[test]
     fn no_comment_but_shebang() {
         let input = "#!/bin/bash\nyes\n yes no\n";
-        let expected = Ok(Vec::new());
-        let actual = find_comments(input);
+        let expected: Vec<CommentMatch> = Vec::new();
+        let actual = find_comments(input).unwrap();
         assert_eq!(expected, actual);
     }
 
     #[test]
     fn normal_comment() {
         let input = "yes # line comment\n yes no\n";
-        let expected = Ok(vec![CommentMatch { from: 4, to: 18 }]);
-        let actual = find_comments(input);
+        let expected = vec![CommentMatch { from: 4, to: 18 }];
+        let actual = find_comments(input).unwrap();
         assert_eq!(expected, actual);
     }
 
     #[test]
     fn multiple_comments() {
         let input = "yes # line comment\n# another comment with \"string\"\n yes no\n";
-        let expected = Ok(vec![
+        let expected = vec![
             CommentMatch { from: 4, to: 18 },
             CommentMatch { from: 19, to: 50 },
-        ]);
-        let actual = find_comments(input);
+        ];
+        let actual = find_comments(input).unwrap();
         assert_eq!(expected, actual);
     }
 
     #[test]
     fn comment_in_shebang() {
         let input = "#!/bin/bash #shebang\nyes\n";
-        let expected = Ok(vec![CommentMatch { from: 12, to: 20 }]);
-        let actual = find_comments(input);
+        let expected = vec![CommentMatch { from: 12, to: 20 }];
+        let actual = find_comments(input).unwrap();
         assert_eq!(expected, actual);
     }
 
     #[test]
     fn no_final_newline() {
         let input = "yes #test";
-        let expected = Ok(vec![CommentMatch { from: 4, to: 9 }]);
-        let actual = find_comments(input);
+        let expected = vec![CommentMatch { from: 4, to: 9 }];
+        let actual = find_comments(input).unwrap();
         assert_eq!(expected, actual);
     }
 
     #[test]
     fn no_comment_in_string() {
         let input = "yes 'string\"inner string\"' #test\n";
-        let expected = Ok(vec![CommentMatch { from: 27, to: 32 }]);
-        let actual = find_comments(input);
+        let expected = vec![CommentMatch { from: 27, to: 32 }];
+        let actual = find_comments(input).unwrap();
         assert_eq!(expected, actual);
     }
 }

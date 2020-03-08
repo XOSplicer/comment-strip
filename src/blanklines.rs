@@ -1,4 +1,4 @@
-use crate::{find_comments_impl, CommentMatch, End, Start};
+use crate::{find_comments_impl, AppError, CommentMatch, End, Start};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ParseState {
@@ -102,12 +102,19 @@ impl Start for MultiBlanklineState {
     }
 }
 
+fn bail(msg: &'static str) -> Result<(), AppError> {
+    Err(AppError::Parser {
+        name: "blankline",
+        msg,
+    })
+}
+
 fn do_action(
     action: ParseAction,
     mut blankline_state: MultiBlanklineState,
     position: usize,
     mut matches: Vec<CommentMatch>,
-) -> Result<(MultiBlanklineState, Vec<CommentMatch>), &'static str> {
+) -> Result<(MultiBlanklineState, Vec<CommentMatch>), AppError> {
     match action {
         ParseAction::Nothing => {}
         ParseAction::MultiBlanklineStart => {
@@ -115,7 +122,7 @@ fn do_action(
         }
         ParseAction::MultiBlanklineEnd => match blankline_state {
             MultiBlanklineState::NotInMultiBlankline => {
-                return Err(" blankline parser error");
+                bail("invalid state")?;
             }
             MultiBlanklineState::InMultiBlankline(from) => {
                 matches.push(CommentMatch {
@@ -129,7 +136,7 @@ fn do_action(
     Ok((blankline_state, matches))
 }
 
-pub fn find_blanklines(input: &str) -> Result<Vec<CommentMatch>, &'static str> {
+pub fn find_blanklines(input: &str) -> Result<Vec<CommentMatch>, AppError> {
     find_comments_impl(input, state_transition, do_action)
 }
 
@@ -141,52 +148,52 @@ mod tests {
     #[test]
     fn no_blanklines_present() {
         let input = "yes\n yes no\n";
-        let expected = Ok(Vec::new());
-        let actual = find_blanklines(input);
+        let expected: Vec<CommentMatch> = Vec::new();
+        let actual = find_blanklines(input).unwrap();
         assert_eq!(expected, actual);
     }
 
     #[test]
     fn starts_with_blanklines() {
         let input = "\n\nhello world\n";
-        let expected = Ok(vec![CommentMatch { from: 0, to: 2 }]);
-        let actual = find_blanklines(input);
+        let expected = vec![CommentMatch { from: 0, to: 2 }];
+        let actual = find_blanklines(input).unwrap();
         assert_eq!(expected, actual);
     }
 
     #[test]
     fn normal_blanklines() {
         let input = "hello\n\n\n world\n";
-        let expected = Ok(vec![CommentMatch { from: 6, to: 8 }]);
-        let actual = find_blanklines(input);
+        let expected = vec![CommentMatch { from: 6, to: 8 }];
+        let actual = find_blanklines(input).unwrap();
         assert_eq!(expected, actual);
     }
 
     #[test]
     fn ends_with_blanklines() {
         let input = "hello world\n\n\n";
-        let expected = Ok(vec![CommentMatch { from: 12, to: 14 }]);
-        let actual = find_blanklines(input);
+        let expected = vec![CommentMatch { from: 12, to: 14 }];
+        let actual = find_blanklines(input).unwrap();
         assert_eq!(expected, actual);
     }
 
     #[test]
     fn multiple_blanklines() {
         let input = "\n\nhello\n\n\n\nworld\n\n\n";
-        let expected = Ok(vec![
+        let expected = vec![
             CommentMatch { from: 0, to: 2 },
             CommentMatch { from: 8, to: 11 },
             CommentMatch { from: 17, to: 19 },
-        ]);
-        let actual = find_blanklines(input);
+        ];
+        let actual = find_blanklines(input).unwrap();
         assert_eq!(expected, actual);
     }
 
     #[test]
     fn no_newline_in_string() {
         let input = "\n'string\"inner string\"\n\n\n\n'\n";
-        let expected = Ok(vec![CommentMatch { from: 0, to: 1 }]);
-        let actual = find_blanklines(input);
+        let expected = vec![CommentMatch { from: 0, to: 1 }];
+        let actual = find_blanklines(input).unwrap();
         assert_eq!(expected, actual);
     }
 }

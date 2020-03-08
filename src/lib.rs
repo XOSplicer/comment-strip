@@ -1,24 +1,22 @@
-use quick_error::quick_error;
 use std::io;
+use thiserror;
 
 mod blanklines;
 mod c;
 mod shell;
 mod xml;
 
-quick_error! {
-    #[derive(Debug)]
-    pub enum AppError {
-        Io(err: io::Error) {
-            from()
-            cause(err)
-            description(err.description())
-        }
-        Other(s: &'static str) {
-            from()
-            description(s)
-        }
-    }
+#[derive(Debug, thiserror::Error)]
+pub enum AppError {
+    #[error(transparent)]
+    Io(#[from] io::Error),
+    #[error("Parser `{name} failed: {msg}`")]
+    Parser {
+        name: &'static str,
+        msg: &'static str,
+    },
+    #[error("Matching parser results failed: {0}")]
+    Match(&'static str),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -46,13 +44,13 @@ pub fn find_comments_impl<P, A, C, FT, FA>(
     input: &str,
     state_transition: FT,
     do_action: FA,
-) -> Result<Vec<CommentMatch>, &'static str>
+) -> Result<Vec<CommentMatch>, AppError>
 where
     P: Start + End + Copy + Eq,
     A: Copy + Eq,
     C: Start + Copy + Eq,
     FT: Fn(P, Option<char>) -> (P, A),
-    FA: Fn(A, C, usize, Vec<CommentMatch>) -> Result<(C, Vec<CommentMatch>), &'static str>,
+    FA: Fn(A, C, usize, Vec<CommentMatch>) -> Result<(C, Vec<CommentMatch>), AppError>,
 {
     let mut matches = Vec::new();
     let mut current_parse_state = P::start();
@@ -72,7 +70,7 @@ where
     Ok(matches)
 }
 
-fn find_comments(input: &str, style: &CommentStyle) -> Result<Vec<CommentMatch>, &'static str> {
+fn find_comments(input: &str, style: &CommentStyle) -> Result<Vec<CommentMatch>, AppError> {
     match style {
         &CommentStyle::C => c::find_comments(input),
         &CommentStyle::Shell => shell::find_comments(input),
@@ -80,7 +78,7 @@ fn find_comments(input: &str, style: &CommentStyle) -> Result<Vec<CommentMatch>,
     }
 }
 
-fn remove_matches(input: String, matches: Vec<CommentMatch>) -> Result<String, &'static str> {
+fn remove_matches(input: String, matches: Vec<CommentMatch>) -> Result<String, AppError> {
     let mut input = input;
     let mut matches = matches;
     matches.sort_by_key(|m| m.from);
@@ -93,19 +91,19 @@ fn remove_matches(input: String, matches: Vec<CommentMatch>) -> Result<String, &
     Ok(input.to_owned())
 }
 
-fn check_sorted_matches(input: &str, matches: &Vec<CommentMatch>) -> Result<(), &'static str> {
+fn check_sorted_matches(input: &str, matches: &Vec<CommentMatch>) -> Result<(), AppError> {
     if matches
         .iter()
         .any(|m| m.from >= input.len() || m.to > input.len())
     {
-        return Err("match out of range");
+        return Err(AppError::Match("match out of range"));
     }
     if matches
         .iter()
         .zip(matches.iter().skip(1))
         .any(|(m, n)| m.to > n.from)
     {
-        return Err("matches overlapping");
+        return Err(AppError::Match("matches overlapping"));
     }
     Ok(())
 }
@@ -114,7 +112,7 @@ pub fn strip_comments(
     data: String,
     style: CommentStyle,
     remove_blanks: bool,
-) -> Result<String, &'static str> {
+) -> Result<String, AppError> {
     let comment_matches = find_comments(data.as_str(), &style)?;
     let mut stripped = remove_matches(data, comment_matches)?;
     if remove_blanks {
@@ -136,8 +134,8 @@ mod tests {
             CommentMatch { from: 11, to: 16 },
             CommentMatch { from: 22, to: 26 },
         ];
-        let stripped = remove_matches(s, matches);
-        assert_eq!(Ok("012345\n\nefghi\n".to_owned()), stripped);
+        let stripped = remove_matches(s, matches).unwrap();
+        assert_eq!("012345\n\nefghi\n".to_owned(), stripped);
     }
 
     #[test]
