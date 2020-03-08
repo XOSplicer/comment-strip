@@ -1,4 +1,4 @@
-use super::{CommentMatch, Start, End, find_comments_impl};
+use crate::{find_comments_impl, CommentMatch, End, Start};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ParseState {
@@ -16,7 +16,7 @@ enum ParseState {
     StringDoubleQuotesEscaped,
     StringSingleQuotes,
     StringSingleQuotesEscaped,
-    End
+    End,
 }
 
 impl Start for ParseState {
@@ -38,87 +38,100 @@ enum ParseAction {
     CommentConfirmed,
     CommentDismissed,
     CommentEnds,
-    CommentsEndsAndCommentOrTagStarts
+    CommentsEndsAndCommentOrTagStarts,
 }
 
 fn state_transition(from: ParseState, current_char: Option<char>) -> (ParseState, ParseAction) {
     match current_char {
         Some(c) => match from {
             ParseState::Start => match c {
-                '<'     => (ParseState::CommentStartBracket, ParseAction::CommentOrTagStarts),
-                '"'     => (ParseState::StringDoubleQuotes, ParseAction::Nothing),
-                '\''    => (ParseState::StringSingleQuotes, ParseAction::Nothing),
-                _       => (ParseState::Normal, ParseAction::Nothing)
+                '<' => (
+                    ParseState::CommentStartBracket,
+                    ParseAction::CommentOrTagStarts,
+                ),
+                '"' => (ParseState::StringDoubleQuotes, ParseAction::Nothing),
+                '\'' => (ParseState::StringSingleQuotes, ParseAction::Nothing),
+                _ => (ParseState::Normal, ParseAction::Nothing),
             },
             ParseState::Normal => match c {
-                '<'     => (ParseState::CommentStartBracket, ParseAction::CommentOrTagStarts),
-                '"'     => (ParseState::StringDoubleQuotes, ParseAction::Nothing),
-                '\''    => (ParseState::StringSingleQuotes, ParseAction::Nothing),
-                _       => (ParseState::Normal, ParseAction::Nothing)
+                '<' => (
+                    ParseState::CommentStartBracket,
+                    ParseAction::CommentOrTagStarts,
+                ),
+                '"' => (ParseState::StringDoubleQuotes, ParseAction::Nothing),
+                '\'' => (ParseState::StringSingleQuotes, ParseAction::Nothing),
+                _ => (ParseState::Normal, ParseAction::Nothing),
             },
             ParseState::CommentStartBracket => match c {
-                '!'     => (ParseState::CommentStartExcl, ParseAction::Nothing),
-                _       => (ParseState::Normal, ParseAction::CommentDismissed)
+                '!' => (ParseState::CommentStartExcl, ParseAction::Nothing),
+                _ => (ParseState::Normal, ParseAction::CommentDismissed),
             },
             ParseState::CommentStartExcl => match c {
-                '-'     => (ParseState::CommentStartMinus1, ParseAction::Nothing),
-                _       => (ParseState::Normal, ParseAction::CommentDismissed)
+                '-' => (ParseState::CommentStartMinus1, ParseAction::Nothing),
+                _ => (ParseState::Normal, ParseAction::CommentDismissed),
             },
             ParseState::CommentStartMinus1 => match c {
-                '-'     => (ParseState::CommentStartMinus2, ParseAction::CommentConfirmed),
-                _       => (ParseState::Normal, ParseAction::CommentDismissed)
+                '-' => (
+                    ParseState::CommentStartMinus2,
+                    ParseAction::CommentConfirmed,
+                ),
+                _ => (ParseState::Normal, ParseAction::CommentDismissed),
             },
             ParseState::CommentStartMinus2 => match c {
-                '-'     => (ParseState::CommentEndMinus1, ParseAction::Nothing),
-                _       => (ParseState::Comment, ParseAction::Nothing)
+                '-' => (ParseState::CommentEndMinus1, ParseAction::Nothing),
+                _ => (ParseState::Comment, ParseAction::Nothing),
             },
             ParseState::Comment => match c {
-                '-'     => (ParseState::CommentEndMinus1, ParseAction::Nothing),
-                _       => (ParseState::Comment, ParseAction::Nothing)
+                '-' => (ParseState::CommentEndMinus1, ParseAction::Nothing),
+                _ => (ParseState::Comment, ParseAction::Nothing),
             },
             ParseState::CommentEndMinus1 => match c {
-                '-'     => (ParseState::CommentEndMinus2, ParseAction::Nothing),
-                _       => (ParseState::Comment, ParseAction::Nothing)
+                '-' => (ParseState::CommentEndMinus2, ParseAction::Nothing),
+                _ => (ParseState::Comment, ParseAction::Nothing),
             },
             ParseState::CommentEndMinus2 => match c {
-                '>'     => (ParseState::CommentEndBracket, ParseAction::Nothing),
-                '-'     => (ParseState::CommentEndMinus2, ParseAction::Nothing),
-                _       => (ParseState::Comment, ParseAction::Nothing)
+                '>' => (ParseState::CommentEndBracket, ParseAction::Nothing),
+                '-' => (ParseState::CommentEndMinus2, ParseAction::Nothing),
+                _ => (ParseState::Comment, ParseAction::Nothing),
             },
             ParseState::CommentEndBracket => match c {
-                '<'     => (ParseState::CommentStartBracket, ParseAction::CommentsEndsAndCommentOrTagStarts),
-                '"'     => (ParseState::StringDoubleQuotes, ParseAction::CommentEnds),
-                '\''    => (ParseState::StringSingleQuotes, ParseAction::CommentEnds),
-                _       => (ParseState::Normal, ParseAction::CommentEnds)
+                '<' => (
+                    ParseState::CommentStartBracket,
+                    ParseAction::CommentsEndsAndCommentOrTagStarts,
+                ),
+                '"' => (ParseState::StringDoubleQuotes, ParseAction::CommentEnds),
+                '\'' => (ParseState::StringSingleQuotes, ParseAction::CommentEnds),
+                _ => (ParseState::Normal, ParseAction::CommentEnds),
             },
             ParseState::StringDoubleQuotes => match c {
-                '"'     => (ParseState::Normal, ParseAction::Nothing),
-                '\\'    => (ParseState::StringDoubleQuotesEscaped, ParseAction::Nothing),
-                _       => (ParseState::StringDoubleQuotes, ParseAction::Nothing)
+                '"' => (ParseState::Normal, ParseAction::Nothing),
+                '\\' => (ParseState::StringDoubleQuotesEscaped, ParseAction::Nothing),
+                _ => (ParseState::StringDoubleQuotes, ParseAction::Nothing),
             },
-            ParseState::StringDoubleQuotesEscaped =>
-                (ParseState::StringDoubleQuotes, ParseAction::Nothing),
+            ParseState::StringDoubleQuotesEscaped => {
+                (ParseState::StringDoubleQuotes, ParseAction::Nothing)
+            }
             ParseState::StringSingleQuotes => match c {
-                '\''     => (ParseState::Normal, ParseAction::Nothing),
-                '\\'    => (ParseState::StringSingleQuotesEscaped, ParseAction::Nothing),
-                _       => (ParseState::StringSingleQuotes, ParseAction::Nothing)
+                '\'' => (ParseState::Normal, ParseAction::Nothing),
+                '\\' => (ParseState::StringSingleQuotesEscaped, ParseAction::Nothing),
+                _ => (ParseState::StringSingleQuotes, ParseAction::Nothing),
             },
-            ParseState::StringSingleQuotesEscaped =>
-                (ParseState::StringSingleQuotes, ParseAction::Nothing),
-            ParseState::End =>
-                (ParseState::End, ParseAction::Nothing)
+            ParseState::StringSingleQuotesEscaped => {
+                (ParseState::StringSingleQuotes, ParseAction::Nothing)
+            }
+            ParseState::End => (ParseState::End, ParseAction::Nothing),
         },
         None => match from {
             ParseState::CommentStartBracket => (ParseState::End, ParseAction::CommentDismissed),
-            ParseState::CommentStartExcl    => (ParseState::End, ParseAction::CommentDismissed),
-            ParseState::CommentStartMinus1  => (ParseState::End, ParseAction::CommentDismissed),
-            ParseState::CommentStartMinus2  => (ParseState::End, ParseAction::CommentDismissed),
-            ParseState::Comment             => (ParseState::End, ParseAction::CommentDismissed),
-            ParseState::CommentEndMinus1    => (ParseState::End, ParseAction::CommentDismissed),
-            ParseState::CommentEndMinus2    => (ParseState::End, ParseAction::CommentDismissed),
-            ParseState::CommentEndBracket   => (ParseState::End, ParseAction::CommentEnds),
-            _                               => (ParseState::End, ParseAction::Nothing)
-        }
+            ParseState::CommentStartExcl => (ParseState::End, ParseAction::CommentDismissed),
+            ParseState::CommentStartMinus1 => (ParseState::End, ParseAction::CommentDismissed),
+            ParseState::CommentStartMinus2 => (ParseState::End, ParseAction::CommentDismissed),
+            ParseState::Comment => (ParseState::End, ParseAction::CommentDismissed),
+            ParseState::CommentEndMinus1 => (ParseState::End, ParseAction::CommentDismissed),
+            ParseState::CommentEndMinus2 => (ParseState::End, ParseAction::CommentDismissed),
+            ParseState::CommentEndBracket => (ParseState::End, ParseAction::CommentEnds),
+            _ => (ParseState::End, ParseAction::Nothing),
+        },
     }
 }
 
@@ -126,7 +139,7 @@ fn state_transition(from: ParseState, current_char: Option<char>) -> (ParseState
 enum CommentState {
     NotInComment,
     InCommentOrTag(usize),
-    InComment(usize)
+    InComment(usize),
 }
 
 impl Start for CommentState {
@@ -135,49 +148,52 @@ impl Start for CommentState {
     }
 }
 
-fn do_action(action: ParseAction, mut comment_state: CommentState, 
-            position: usize, mut matches: Vec<CommentMatch>) 
-    -> Result<(CommentState, Vec<CommentMatch>), &'static str> {
+fn do_action(
+    action: ParseAction,
+    mut comment_state: CommentState,
+    position: usize,
+    mut matches: Vec<CommentMatch>,
+) -> Result<(CommentState, Vec<CommentMatch>), &'static str> {
     match action {
-        ParseAction::Nothing => {},
+        ParseAction::Nothing => {}
         ParseAction::CommentOrTagStarts => {
             comment_state = CommentState::InCommentOrTag(position);
-        },
-        ParseAction::CommentConfirmed => {
-            match comment_state {
-                CommentState::InCommentOrTag(from) => {
-                    comment_state = CommentState::InComment(from);
-                },
-                _ => {
-                    return Err("xml style parser error");
-                }
+        }
+        ParseAction::CommentConfirmed => match comment_state {
+            CommentState::InCommentOrTag(from) => {
+                comment_state = CommentState::InComment(from);
+            }
+            _ => {
+                return Err("xml style parser error");
             }
         },
         ParseAction::CommentDismissed => {
             comment_state = CommentState::NotInComment;
-        },
-        ParseAction::CommentEnds => {
-            match comment_state {
-                CommentState::InComment(from) => {
-                    matches.push(CommentMatch{from: from, to: position});
-                    comment_state = CommentState::NotInComment;
-                },
-                _ => {
-                    return Err("xml style parser error");
-                }
-            }
-        },
-        ParseAction::CommentsEndsAndCommentOrTagStarts => {
-            match comment_state {
-                CommentState::InComment(from) => {
-                    matches.push(CommentMatch{from: from, to: position});
-                    comment_state = CommentState::InCommentOrTag(position);
-                },
-                _ => {
-                    return Err("xml style parser error");
-                }
-            }
         }
+        ParseAction::CommentEnds => match comment_state {
+            CommentState::InComment(from) => {
+                matches.push(CommentMatch {
+                    from: from,
+                    to: position,
+                });
+                comment_state = CommentState::NotInComment;
+            }
+            _ => {
+                return Err("xml style parser error");
+            }
+        },
+        ParseAction::CommentsEndsAndCommentOrTagStarts => match comment_state {
+            CommentState::InComment(from) => {
+                matches.push(CommentMatch {
+                    from: from,
+                    to: position,
+                });
+                comment_state = CommentState::InCommentOrTag(position);
+            }
+            _ => {
+                return Err("xml style parser error");
+            }
+        },
     }
     Ok((comment_state, matches))
 }
@@ -188,8 +204,8 @@ pub fn find_comments(input: &str) -> Result<Vec<CommentMatch>, &'static str> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::CommentMatch;
+    use super::*;
 
     #[test]
     fn no_comment_present() {
@@ -202,9 +218,7 @@ mod tests {
     #[test]
     fn normal_comment() {
         let input = "<t /><!-- some comment -->\n<tag />";
-        let expected = Ok(vec![
-            CommentMatch { from: 5, to: 26}
-        ]);
+        let expected = Ok(vec![CommentMatch { from: 5, to: 26 }]);
         let actual = find_comments(input);
         assert_eq!(expected, actual);
     }
@@ -214,7 +228,7 @@ mod tests {
         let input = "<t /><!-- some comment --><t></t><!-- another comment -->";
         let expected = Ok(vec![
             CommentMatch { from: 5, to: 26 },
-            CommentMatch { from: 33, to: 57 }
+            CommentMatch { from: 33, to: 57 },
         ]);
         let actual = find_comments(input);
         assert_eq!(expected, actual);
@@ -223,9 +237,7 @@ mod tests {
     #[test]
     fn comment_in_tag() {
         let input = "<tag <!-- comment -->></tag>";
-        let expected = Ok(vec![
-            CommentMatch { from: 5, to: 21 }
-        ]);
+        let expected = Ok(vec![CommentMatch { from: 5, to: 21 }]);
         let actual = find_comments(input);
         assert_eq!(expected, actual);
     }
@@ -233,9 +245,7 @@ mod tests {
     #[test]
     fn multiline_comment() {
         let input = "<!--\nmulti\nline\ncomment\n-->";
-        let expected = Ok(vec![
-            CommentMatch { from: 0, to: 27 }
-        ]);
+        let expected = Ok(vec![CommentMatch { from: 0, to: 27 }]);
         let actual = find_comments(input);
         assert_eq!(expected, actual);
     }

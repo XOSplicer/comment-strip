@@ -1,13 +1,9 @@
-#[macro_use]
-extern crate clap;
-extern crate comment_strip;
-
 mod config;
 
-use std::io::{Read, Write, BufReader, BufWriter};
-use clap::App;
-use comment_strip::*;
-use config::Config;
+use crate::config::Config;
+use clap::{load_yaml, App};
+use comment_strip::{strip_comments, AppError};
+use std::io::{BufReader, BufWriter, Read, Write};
 
 fn doit(config: Config) -> Result<(), AppError> {
     let mut data = String::new();

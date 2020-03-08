@@ -1,4 +1,4 @@
-use super::{CommentMatch, Start, End, find_comments_impl};
+use crate::{find_comments_impl, CommentMatch, End, Start};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ParseState {
@@ -10,7 +10,7 @@ enum ParseState {
     StringDoubleQuotesEscaped,
     StringSingleQuotes,
     StringSingleQuotesEscaped,
-    End
+    End,
 }
 
 impl Start for ParseState {
@@ -29,64 +29,71 @@ impl End for ParseState {
 enum ParseAction {
     Nothing,
     MultiBlanklineStart,
-    MultiBlanklineEnd
+    MultiBlanklineEnd,
 }
 
 fn state_transition(from: ParseState, current_char: Option<char>) -> (ParseState, ParseAction) {
     match current_char {
         Some(c) => match from {
             ParseState::Start => match c {
-                '\n'    => (ParseState::MultiBlankline, ParseAction::MultiBlanklineStart),
-                '"'     => (ParseState::StringDoubleQuotes, ParseAction::Nothing),
-                '\''    => (ParseState::StringSingleQuotes, ParseAction::Nothing),
-                _       => (ParseState::Normal, ParseAction::Nothing)
+                '\n' => (ParseState::MultiBlankline, ParseAction::MultiBlanklineStart),
+                '"' => (ParseState::StringDoubleQuotes, ParseAction::Nothing),
+                '\'' => (ParseState::StringSingleQuotes, ParseAction::Nothing),
+                _ => (ParseState::Normal, ParseAction::Nothing),
             },
             ParseState::Normal => match c {
-                '\n'    => (ParseState::SingleBlankline, ParseAction::Nothing),
-                '"'     => (ParseState::StringDoubleQuotes, ParseAction::Nothing),
-                '\''    => (ParseState::StringSingleQuotes, ParseAction::Nothing),
-                _       => (ParseState::Normal, ParseAction::Nothing)
+                '\n' => (ParseState::SingleBlankline, ParseAction::Nothing),
+                '"' => (ParseState::StringDoubleQuotes, ParseAction::Nothing),
+                '\'' => (ParseState::StringSingleQuotes, ParseAction::Nothing),
+                _ => (ParseState::Normal, ParseAction::Nothing),
             },
             ParseState::SingleBlankline => match c {
-                '\n'    => (ParseState::MultiBlankline, ParseAction::MultiBlanklineStart),
-                '"'     => (ParseState::StringDoubleQuotes, ParseAction::Nothing),
-                '\''    => (ParseState::StringSingleQuotes, ParseAction::Nothing),
-                _       => (ParseState::Normal, ParseAction::Nothing)
+                '\n' => (ParseState::MultiBlankline, ParseAction::MultiBlanklineStart),
+                '"' => (ParseState::StringDoubleQuotes, ParseAction::Nothing),
+                '\'' => (ParseState::StringSingleQuotes, ParseAction::Nothing),
+                _ => (ParseState::Normal, ParseAction::Nothing),
             },
             ParseState::MultiBlankline => match c {
-                '\n'    => (ParseState::MultiBlankline, ParseAction::Nothing),
-                '"'     => (ParseState::StringDoubleQuotes, ParseAction::MultiBlanklineEnd),
-                '\''    => (ParseState::StringSingleQuotes, ParseAction::MultiBlanklineEnd),
-                _       => (ParseState::Normal, ParseAction::MultiBlanklineEnd)
+                '\n' => (ParseState::MultiBlankline, ParseAction::Nothing),
+                '"' => (
+                    ParseState::StringDoubleQuotes,
+                    ParseAction::MultiBlanklineEnd,
+                ),
+                '\'' => (
+                    ParseState::StringSingleQuotes,
+                    ParseAction::MultiBlanklineEnd,
+                ),
+                _ => (ParseState::Normal, ParseAction::MultiBlanklineEnd),
             },
             ParseState::StringDoubleQuotes => match c {
-                '"'     => (ParseState::Normal, ParseAction::Nothing),
-                '\\'    => (ParseState::StringDoubleQuotesEscaped, ParseAction::Nothing),
-                _       => (ParseState::StringDoubleQuotes, ParseAction::Nothing)
+                '"' => (ParseState::Normal, ParseAction::Nothing),
+                '\\' => (ParseState::StringDoubleQuotesEscaped, ParseAction::Nothing),
+                _ => (ParseState::StringDoubleQuotes, ParseAction::Nothing),
             },
-            ParseState::StringDoubleQuotesEscaped => 
-                (ParseState::StringDoubleQuotes, ParseAction::Nothing),
+            ParseState::StringDoubleQuotesEscaped => {
+                (ParseState::StringDoubleQuotes, ParseAction::Nothing)
+            }
             ParseState::StringSingleQuotes => match c {
-                '\''     => (ParseState::Normal, ParseAction::Nothing),
-                '\\'    => (ParseState::StringSingleQuotesEscaped, ParseAction::Nothing),
-                _       => (ParseState::StringSingleQuotes, ParseAction::Nothing)
+                '\'' => (ParseState::Normal, ParseAction::Nothing),
+                '\\' => (ParseState::StringSingleQuotesEscaped, ParseAction::Nothing),
+                _ => (ParseState::StringSingleQuotes, ParseAction::Nothing),
             },
-            ParseState::StringSingleQuotesEscaped => 
-                (ParseState::StringSingleQuotes, ParseAction::Nothing),
-            ParseState::End => 
-                (ParseState::End, ParseAction::Nothing)
+            ParseState::StringSingleQuotesEscaped => {
+                (ParseState::StringSingleQuotes, ParseAction::Nothing)
+            }
+            ParseState::End => (ParseState::End, ParseAction::Nothing),
         },
         None => match from {
             ParseState::MultiBlankline => (ParseState::End, ParseAction::MultiBlanklineEnd),
-            _ => (ParseState::End, ParseAction::Nothing)
-        }
+            _ => (ParseState::End, ParseAction::Nothing),
+        },
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum MultiBlanklineState {
     NotInMultiBlankline,
-    InMultiBlankline(usize)
+    InMultiBlankline(usize),
 }
 
 impl Start for MultiBlanklineState {
@@ -95,25 +102,29 @@ impl Start for MultiBlanklineState {
     }
 }
 
-fn do_action(action: ParseAction, mut blankline_state: MultiBlanklineState, 
-            position: usize, mut matches: Vec<CommentMatch>) 
-    -> Result<(MultiBlanklineState, Vec<CommentMatch>), &'static str> {
+fn do_action(
+    action: ParseAction,
+    mut blankline_state: MultiBlanklineState,
+    position: usize,
+    mut matches: Vec<CommentMatch>,
+) -> Result<(MultiBlanklineState, Vec<CommentMatch>), &'static str> {
     match action {
-        ParseAction::Nothing => {},
+        ParseAction::Nothing => {}
         ParseAction::MultiBlanklineStart => {
             blankline_state = MultiBlanklineState::InMultiBlankline(position);
-        },
-        ParseAction::MultiBlanklineEnd => {
-            match blankline_state {
-                MultiBlanklineState::NotInMultiBlankline => {
-                    return Err(" blankline parser error");
-                },
-                MultiBlanklineState::InMultiBlankline(from) => {
-                    matches.push(CommentMatch{from: from, to: position});
-                    blankline_state = MultiBlanklineState::NotInMultiBlankline;
-                }
-            }
         }
+        ParseAction::MultiBlanklineEnd => match blankline_state {
+            MultiBlanklineState::NotInMultiBlankline => {
+                return Err(" blankline parser error");
+            }
+            MultiBlanklineState::InMultiBlankline(from) => {
+                matches.push(CommentMatch {
+                    from: from,
+                    to: position,
+                });
+                blankline_state = MultiBlanklineState::NotInMultiBlankline;
+            }
+        },
     }
     Ok((blankline_state, matches))
 }
@@ -124,8 +135,8 @@ pub fn find_blanklines(input: &str) -> Result<Vec<CommentMatch>, &'static str> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::CommentMatch;
+    use super::*;
 
     #[test]
     fn no_blanklines_present() {
@@ -138,9 +149,7 @@ mod tests {
     #[test]
     fn starts_with_blanklines() {
         let input = "\n\nhello world\n";
-        let expected = Ok(vec![
-            CommentMatch { from: 0, to: 2}
-        ]);
+        let expected = Ok(vec![CommentMatch { from: 0, to: 2 }]);
         let actual = find_blanklines(input);
         assert_eq!(expected, actual);
     }
@@ -148,9 +157,7 @@ mod tests {
     #[test]
     fn normal_blanklines() {
         let input = "hello\n\n\n world\n";
-        let expected = Ok(vec![
-            CommentMatch { from: 6, to: 8}
-        ]);
+        let expected = Ok(vec![CommentMatch { from: 6, to: 8 }]);
         let actual = find_blanklines(input);
         assert_eq!(expected, actual);
     }
@@ -158,9 +165,7 @@ mod tests {
     #[test]
     fn ends_with_blanklines() {
         let input = "hello world\n\n\n";
-        let expected = Ok(vec![
-            CommentMatch { from: 12, to: 14}
-        ]);
+        let expected = Ok(vec![CommentMatch { from: 12, to: 14 }]);
         let actual = find_blanklines(input);
         assert_eq!(expected, actual);
     }
@@ -169,9 +174,9 @@ mod tests {
     fn multiple_blanklines() {
         let input = "\n\nhello\n\n\n\nworld\n\n\n";
         let expected = Ok(vec![
-            CommentMatch { from: 0, to: 2},
-            CommentMatch { from: 8, to: 11},
-            CommentMatch { from: 17, to: 19}
+            CommentMatch { from: 0, to: 2 },
+            CommentMatch { from: 8, to: 11 },
+            CommentMatch { from: 17, to: 19 },
         ]);
         let actual = find_blanklines(input);
         assert_eq!(expected, actual);
@@ -180,13 +185,8 @@ mod tests {
     #[test]
     fn no_newline_in_string() {
         let input = "\n'string\"inner string\"\n\n\n\n'\n";
-        let expected = Ok(vec![
-            CommentMatch { from: 0, to: 1 }
-        ]);
+        let expected = Ok(vec![CommentMatch { from: 0, to: 1 }]);
         let actual = find_blanklines(input);
         assert_eq!(expected, actual);
     }
-
-
-    
 }

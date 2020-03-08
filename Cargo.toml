@@ -9,6 +9,7 @@ readme = "README.md"
 keywords = ["delete", "remove", "strip", "comments", "commandline"]
 categories = ["command-line-utilities", "text-processing"]
 include = ["src/**/*", "Cargo.toml", "LICENSE", "README.md"]
+edition = "2018"
 
 [badges]
 travis-ci = { repository = "XOSplicer/comment-strip", branch = "master" }
